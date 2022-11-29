@@ -1,0 +1,57 @@
+/*
+ * Web Fonts from colophon-foundry.org
+ *
+ * The fonts included in this stylesheet are subject to the End User License you purchased
+ * from Colophon Foundry. The fonts are protected under domestic and international trademark and
+ * copyright law. You are prohibited from modifying, reverse engineering, duplicating, or
+ * distributing this font software.
+ *
+ * (c) 2021 Colophon Foundry
+ *
+ * Licenced to Банк ВТБ (ПАО) Банк ВТБ (ПАО)
+ */
+/*
+ * Web Fonts from colophon-foundry.org
+ *
+ * The fonts included in this stylesheet are subject to the End User License you purchased
+ * from Colophon Foundry. The fonts are protected under domestic and international trademark and
+ * copyright law. You are prohibited from modifying, reverse engineering, duplicating, or
+ * distributing this font software.
+ *
+ * (c) 2022 Colophon Foundry
+ *
+ * Licenced to Artem infografika.agency
+ */
+ @font-face {
+    font-family: 'Mabry Pro';
+    src: url('mabry-regular-pro.woff');
+    /* src: url('MabryPro-Regular.eot?#iefix') format('embedded-opentype'),
+        url('MabryPro-Regular.woff2') format('woff2'),
+        url('MabryPro-Regular.woff') format('woff'),
+        url('MabryPro-Regular.ttf') format('truetype'); */
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Mabry Pro';
+    src: url('mabry-light-pro.woff');
+    /* src: url('MabryPro-Light.eot?#iefix') format('embedded-opentype'),
+        url('MabryPro-Light.woff2') format('woff2'),
+        url('MabryPro-Light.woff') format('woff'),
+        url('MabryPro-Light.ttf') format('truetype'); */
+    font-weight: 300;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Mabry Pro';
+    src: url('MabryPro-Medium.eot');
+    src: url('MabryPro-Medium.eot?#iefix') format('embedded-opentype'),
+        url('MabryPro-Medium.woff2') format('woff2'),
+        url('MabryPro-Medium.woff') format('woff'),
+        url('MabryPro-Medium.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+}
+
