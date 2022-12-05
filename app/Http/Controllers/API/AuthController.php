@@ -1,8 +1,12 @@
 <?php
 
 namespace App\Http\Controllers\API;
+
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 
+use App\Services\GetresponseService;
+use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Http\Request;
 use \App\Models\EmailLogin;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +20,13 @@ use \App\Models\Transaction;
 
 class AuthController extends Controller
 {
+    private $getresponseService;
+
+    public function __construct(GetresponseService $getresponseService)
+    {
+        $this->getresponseService = $getresponseService;
+    }
+
     public function login(Request $request)
     {
         $paid = false;
@@ -23,41 +34,41 @@ class AuthController extends Controller
         if (!$paymentSystem) {
             $paymentSystem = 'robokassa';
         }
-        if($request->email == ""){
+        if ($request->email == "") {
             return response()->json([
-                "status" => false,
+                "status"  => false,
                 "message" => "Не введен email",
-                "data" => []
+                "data"    => [],
             ]);
         }
-        if($request->resend == "y" && $request->email != ""){
+        if ($request->resend == "y" && $request->email != "") {
             $issetUserEmail = EmailLogin::where('email', $request->email)->first();
-            if($issetUserEmail){
+            if ($issetUserEmail) {
                 $url = route('email-authenticate', [
-                    'token' => $issetUserEmail->token
+                    'token' => $issetUserEmail->token,
                 ]);
 
                 Mail::send('emails.email-login', ['url' => $url], function ($m) use ($request) {
-                    $m->from(config('mail.from.address'),  config('app.title'));
+                    $m->from(config('mail.from.address'), config('app.title'));
                     $m->to($request->input('email'))->subject("Ссылка для входа в кейс");
                 });
             }
 
             return response()->json([
-                "status" => true,
+                "status"  => true,
                 "message" => "Проверьте почту",
-                "data" => []
+                "data"    => [],
             ]);
         }
 
         //проверка на существование пользователя
         $user = \App\Models\User::where("email", $request->email)->first();
-        if($user){
+        if ($user) {
             // поиск заказа пользователя
             $transaction = Transaction::where('user_id', $user->id)->first();
-            if($transaction){
+            if ($transaction) {
                 $inv_id = $transaction->id;
-            }else{
+            } else {
                 //создание заказа
                 $newTransaction = new Transaction;
                 $newTransaction->out_sum = CASE_PRICE;
@@ -74,13 +85,13 @@ class AuthController extends Controller
             $mrh_pass1 = config('robokassa.testpass1');   // merchant pass1 here
 
             // order properties
-            $inv_desc  = "Оплата кейса №1";    // invoice desc
-            $out_summ  = CASE_PRICE;    // invoice summ
+            $inv_desc = "Оплата кейса №1";    // invoice desc
+            $out_summ = CASE_PRICE;    // invoice summ
             // build CRC value
-            $crc  = md5("$mrh_login:$out_summ:$inv_id:$mrh_pass1");
+            $crc = md5("$mrh_login:$out_summ:$inv_id:$mrh_pass1");
             // build URL
             $urlPayment =
-                "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin=$mrh_login&".
+                "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin=$mrh_login&" .
                 "OutSum=$out_summ&InvId=$inv_id&Description=$inv_desc&SignatureValue=$crc";
 
 
@@ -89,17 +100,16 @@ class AuthController extends Controller
             );
             $stripeSession = $stripe->checkout->sessions->create([
                 'success_url' => 'https://api.pbrtt.ru/stripeSuccess?session_id={CHECKOUT_SESSION_ID}&inv_id=' . $inv_id,
-                'cancel_url' => 'https://api.pbrtt.ru/fail',
-                'line_items' => [
+                'cancel_url'  => 'https://api.pbrtt.ru/fail',
+                'line_items'  => [
                     [
-                        'price' => 'price_1M6SxIJvZKDEPMw5sLkkm79T',
+                        'price'    => 'price_1M6SxIJvZKDEPMw5sLkkm79T',
                         'quantity' => 1,
                     ],
                 ],
-                'mode' => 'payment',
+                'mode'        => 'payment',
             ]);
             $urlPaymentStripe = $stripeSession->url;
-
 
 
             /*Log::info("login".$mrh_login);
@@ -108,37 +118,37 @@ class AuthController extends Controller
             Log::info("outsum".$out_summ);*/
 
             // проверка наличия номера счета в истории операций
-            if($transaction){
-                if($transaction->success)
+            if ($transaction) {
+                if ($transaction->success)
                     $paid = true;
             }
 
             $issetUserEmail = EmailLogin::where('email', $request->email)->first();
             $url = route('email-authenticate', [
-                'token' => $issetUserEmail->token
+                'token' => $issetUserEmail->token,
             ]);
 
             Mail::send('emails.email-login', ['url' => $url], function ($m) use ($request) {
-                $m->from(config('mail.from.address'),  config('app.title'));
+                $m->from(config('mail.from.address'), config('app.title'));
                 $m->to($request->input('email'))->subject("Ссылка для входа в кейс");
             });
 
             return response()->json([
-                "status" => true,
+                "status"  => true,
                 "message" => "Пользователь найден",
-                "data" => [
-                    "user_id" => $user->id,
+                "data"    => [
+                    "user_id"      => $user->id,
                     "payment_link" => $urlPayment,
-                    "paid" => $paid,
-                    "registered" => true,
+                    "paid"         => $paid,
+                    "registered"   => true,
                     "payment_urls" => [
                         'robokassa' => $urlPayment,
-                        'stripe' => $urlPaymentStripe
-                    ]
-                ]
+                        'stripe'    => $urlPaymentStripe,
+                    ],
+                ],
             ]);
 
-        }else{
+        } else {
             $newUser = new \App\Models\User();
             $newUser->email = $request->email;
             $newUser->name = $request->email;
@@ -146,7 +156,15 @@ class AuthController extends Controller
             $newUser->save();
 
             $inv_id = "";
-            if($newUser){
+            if ($newUser) {
+                try {
+                    $this->getresponseService->createContact($newUser->email, $this->getresponseService::CASE_1_LEAD_CAMPAIGN_ID);
+                } catch (ApiException $apiException) {
+                    Log::error('Error on getresponse create contact (Api exception): ' . $apiException->getMessage());
+                } catch (GuzzleException $guzzleException) {
+                    Log::error('Error on getresponse create contact (Guzzle exception): ' . $guzzleException->getMessage());
+                }
+
                 $userId = $newUser->id;
                 //создание заказа
                 $newTransaction = new Transaction;
@@ -156,15 +174,14 @@ class AuthController extends Controller
                 $inv_id = $newTransaction->id;
             }
 
-
             //создаем авторизационный хеш к email и отправляем письмо-подтверждение авторизации
             $emailLogin = EmailLogin::createForEmail($request->email);
             $url = route('email-authenticate', [
-                'token' => $emailLogin->token
+                'token' => $emailLogin->token,
             ]);
 
             Mail::send('emails.email-login', ['url' => $url], function ($m) use ($request) {
-                $m->from(config('mail.from.address'),  config('app.title'));
+                $m->from(config('mail.from.address'), config('app.title'));
                 $m->to($request->input('email'))->subject(config('app.title'));
             });
 
@@ -173,13 +190,13 @@ class AuthController extends Controller
             // TODO: вынести в хелпер
             $mrh_login = config('robokassa.login');      // your login here
             $mrh_pass1 = config('robokassa.testpass1');   // merchant pass1 here
-            $inv_desc  = "Оплата кейса №1";    // invoice desc
-            $out_summ  = CASE_PRICE;
+            $inv_desc = "Оплата кейса №1";    // invoice desc
+            $out_summ = CASE_PRICE;
             // build CRC value
-            $crc  = md5("$mrh_login:$out_summ:$inv_id:$mrh_pass1");
+            $crc = md5("$mrh_login:$out_summ:$inv_id:$mrh_pass1");
             // build URL
             $urlPayment =
-                "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin=$mrh_login&".
+                "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin=$mrh_login&" .
                 "OutSum=$out_summ&InvId=$inv_id&Description=$inv_desc&SignatureValue=$crc";
 
             $stripe = new \Stripe\StripeClient(
@@ -187,31 +204,31 @@ class AuthController extends Controller
             );
             $stripeSession = $stripe->checkout->sessions->create([
                 'success_url' => 'https://api.pbrtt.ru/stripeSuccess?session_id={CHECKOUT_SESSION_ID}&inv_id=' . $inv_id,
-                'cancel_url' => 'https://api.pbrtt.ru/fail',
-                'line_items' => [
+                'cancel_url'  => 'https://api.pbrtt.ru/fail',
+                'line_items'  => [
                     [
-                        'price' => 'price_1M6SxIJvZKDEPMw5sLkkm79T',
+                        'price'    => 'price_1M6SxIJvZKDEPMw5sLkkm79T',
                         'quantity' => 1,
                     ],
                 ],
-                'mode' => 'payment',
+                'mode'        => 'payment',
             ]);
             $urlPaymentStripe = $stripeSession->url;
 
 
             return response()->json([
-                "status" => true,
+                "status"  => true,
                 "message" => "Пользователь создан. Проверьте почту",
-                "data" => [
-                    "user_id" => $userId,
+                "data"    => [
+                    "user_id"      => $userId,
                     "payment_link" => $urlPayment,
-                    "registered" => false,
-                    "paid" => false,
+                    "registered"   => false,
+                    "paid"         => false,
                     "payment_urls" => [
                         'robokassa' => $urlPayment,
-                        'stripe' => $urlPaymentStripe
-                    ]
-                ]
+                        'stripe'    => $urlPaymentStripe,
+                    ],
+                ],
             ]);
 
 
@@ -219,7 +236,8 @@ class AuthController extends Controller
 
     }
 
-    public function getPaymentLinks(){
+    public function getPaymentLinks()
+    {
         $price = CASE_PRICE;
         $auth = false;
         $user = null;
@@ -229,8 +247,8 @@ class AuthController extends Controller
             $auth = true;
             $user = Auth::user();
             $transaction = Transaction::where('user_id', $user->id)->first();
-            if($transaction){
-                if($transaction->success){
+            if ($transaction) {
+                if ($transaction->success) {
                     $paidTransaction = true;
                 }
                 $inv_id = $transaction->id;
@@ -241,13 +259,13 @@ class AuthController extends Controller
                 $mrh_pass1 = config('robokassa.testpass1');   // merchant pass1 here
 
                 // order properties
-                $inv_desc  = "Оплата кейса №1";    // invoice desc
-                $out_summ  = CASE_PRICE;    // invoice summ
+                $inv_desc = "Оплата кейса №1";    // invoice desc
+                $out_summ = CASE_PRICE;    // invoice summ
                 // build CRC value
-                $crc  = md5("$mrh_login:$out_summ:$inv_id:$mrh_pass1");
+                $crc = md5("$mrh_login:$out_summ:$inv_id:$mrh_pass1");
                 // build URL
                 $urlPayment =
-                    "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin=$mrh_login&".
+                    "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin=$mrh_login&" .
                     "OutSum=$out_summ&InvId=$inv_id&Description=$inv_desc&SignatureValue=$crc";
 
 
@@ -256,36 +274,37 @@ class AuthController extends Controller
                 );
                 $stripeSession = $stripe->checkout->sessions->create([
                     'success_url' => 'https://api.pbrtt.ru/stripeSuccess?session_id={CHECKOUT_SESSION_ID}&inv_id=' . $inv_id,
-                    'cancel_url' => 'https://api.pbrtt.ru/fail',
-                    'line_items' => [
+                    'cancel_url'  => 'https://api.pbrtt.ru/fail',
+                    'line_items'  => [
                         [
-                            'price' => 'price_1M6SxIJvZKDEPMw5sLkkm79T',
+                            'price'    => 'price_1M6SxIJvZKDEPMw5sLkkm79T',
                             'quantity' => 1,
                         ],
                     ],
-                    'mode' => 'payment',
+                    'mode'        => 'payment',
                 ]);
                 $urlPaymentStripe = $stripeSession->url;
             }
         }
 
         return response()->json([
-            "status" => true,
+            "status"  => true,
             "message" => "",
-            "data" => [
-                "user" => $user,
-                "auth" => $auth,
-                "paid"  =>  $paidTransaction,
-                "price" => $price,
+            "data"    => [
+                "user"         => $user,
+                "auth"         => $auth,
+                "paid"         => $paidTransaction,
+                "price"        => $price,
                 "payment_urls" => [
                     "robokassa" => $urlPayment,
-                    "stripe" => $urlPaymentStripe
-                ]
-            ]
+                    "stripe"    => $urlPaymentStripe,
+                ],
+            ],
         ]);
     }
 
-    public function getAuth(){
+    public function getAuth()
+    {
         $price = CASE_PRICE;
         $auth = false;
         $user = null;
@@ -295,30 +314,30 @@ class AuthController extends Controller
             $auth = true;
             $user = Auth::user();
             $transaction = Transaction::where('user_id', $user->id)->first();
-            if($transaction){
-                if($transaction->success){
+            if ($transaction) {
+                if ($transaction->success) {
                     $paidTransaction = true;
                 }
             }
         }
 
         return response()->json([
-            "status" => true,
+            "status"  => true,
             "message" => "",
-            "data" => [
-                "user" => $user,
-                "auth" => $auth,
-                "paid"  =>  $paidTransaction,
-                "price" => $price
-            ]
+            "data"    => [
+                "user"  => $user,
+                "auth"  => $auth,
+                "paid"  => $paidTransaction,
+                "price" => $price,
+            ],
         ]);
     }
 
-    public function logout(){
+    public function logout()
+    {
         dd("2");
         Auth::logout();
     }
-
 
 
 }
