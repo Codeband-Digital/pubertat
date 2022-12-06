@@ -12,7 +12,8 @@ class Transaction extends Model
     protected $fillable = [
         'user_id',
         'out_sum',
-        'success'
+        'success',
+        'case_id'
     ];
 
     public function user()
@@ -20,4 +21,8 @@ class Transaction extends Model
         return $this->belongsTo(User::class, 'user_id','id');
     }
 
+    public function case()
+    {
+        return $this->belongsTo(Cases::class, 'case_id','id');
+    }
 }
