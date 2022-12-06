@@ -14,10 +14,6 @@ return new class extends Migration {
     {
         Schema::table('transactions', function (Blueprint $table) {
             $table->integer('case_id')->nullable();
-            $table->foreign('case_id')
-                ->references('id')
-                ->on('cases')
-                ->cascadeOnDelete();
         });
     }
 
