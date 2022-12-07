@@ -27,6 +27,7 @@ Route::post('/api/login/', [\App\Http\Controllers\API\AuthController::class, 'lo
 //Route::get('/api/logout/', [\App\Http\Controllers\API\AuthController::class, 'logout']);
 Route::get('/api/getUserInfo/', [\App\Http\Controllers\API\AuthController::class, 'getAuth']);
 Route::get('/api/getPaymentLinks/', [\App\Http\Controllers\API\AuthController::class, 'getPaymentLinks']);
+Route::get('/api/getCases/', [\App\Http\Controllers\API\CasesController::class, 'getAll']);
 
 
 Route::get('auth/email-authenticate/{token}', [
