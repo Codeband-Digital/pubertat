@@ -57,7 +57,7 @@ class AuthController extends Controller
 
                 Mail::send('emails.email-login', ['url' => $url], function ($m) use ($request) {
                     $m->from(config('mail.from.address'), config('app.title'));
-                    $m->to($request->input('email'))->subject("Ссылка для входа в кейс");
+                    $m->to($request->input('email'))->subject("Подтвердите почту");
                 });
             }
 
@@ -78,7 +78,7 @@ class AuthController extends Controller
 
             Mail::send('emails.email-login', ['url' => $url], function ($m) use ($request) {
                 $m->from(config('mail.from.address'), config('app.title'));
-                $m->to($request->input('email'))->subject("Ссылка для входа в кейс");
+                $m->to($request->input('email'))->subject("Подтвердите почту");
             });
 
             return response()->json([
@@ -119,7 +119,7 @@ class AuthController extends Controller
 
         Mail::send('emails.email-login', ['url' => $url], function ($m) use ($request) {
             $m->from(config('mail.from.address'), config('app.title'));
-            $m->to($request->input('email'))->subject(config('app.title'));
+            $m->to($request->input('email'))->subject(config('Подтвердите почту'));
         });
 
 
