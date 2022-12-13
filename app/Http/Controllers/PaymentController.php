@@ -56,8 +56,21 @@ class PaymentController extends Controller
             return redirect(config('app.urlfront').'/fail');
         }
 
+        $transactions = Transaction::where('user_id', $transaction->user_id)->get();
+        $cases = [];
+
+        foreach ($transactions as $caseTransaction) {
+            $cases[] = "Кейс №" . $caseTransaction->case->site_number;
+        }
+
+        $caseString = implode(", ", $cases);
+
         try {
-            $this->getresponseService->updateContactCampaignByEmail($transaction->user->email, $this->getresponseService::CASE_1_SOLD_CAMPAIGN_ID);
+            $this->getresponseService->updateContactCampaignByEmail(
+                $transaction->user->email,
+                $this->getresponseService::CASE_1_SOLD_CAMPAIGN_ID,
+                $caseString
+            );
         } catch (ApiException $apiException) {
             Log::error('Error on getresponse create contact (Api exception): ' . $apiException->getMessage());
         } catch (GuzzleException $guzzleException) {
@@ -142,8 +155,21 @@ class PaymentController extends Controller
         $transaction->success = true;
         $transaction->save();
 
+        $transactions = Transaction::where('user_id', $transaction->user_id)->get();
+        $cases = [];
+
+        foreach ($transactions as $caseTransaction) {
+            $cases[] = "Кейс №" . $caseTransaction->case->site_number;
+        }
+
+        $caseString = implode(", ", $cases);
+
         try {
-            $this->getresponseService->updateContactCampaignByEmail($transaction->user->email, $this->getresponseService::CASE_1_SOLD_CAMPAIGN_ID);
+            $this->getresponseService->updateContactCampaignByEmail(
+                $transaction->user->email,
+                $this->getresponseService::CASE_1_SOLD_CAMPAIGN_ID,
+                $caseString
+            );
         } catch (ApiException $apiException) {
             Log::error('Error on getresponse update contact (Api exception): ' . $apiException->getMessage());
         } catch (GuzzleException $guzzleException) {

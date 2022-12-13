@@ -16,6 +16,7 @@ class GetresponseService extends BaseApiService
     const CASE_1_LEAD_CAMPAIGN_ID = 'oPIZt';
     const CASE_1_SOLD_CAMPAIGN_ID = 'oPIWi';
     const LOGIN_URL_FIELD_ID = 'Vtw43s';
+    const PAYED_CASE_FIELD_ID = 'Vtw4mg';
 
     public function __construct()
     {
@@ -77,21 +78,47 @@ class GetresponseService extends BaseApiService
     public function updateContactCampaignByContactId(string $contactId, string $email, string $campaignId): void
     {
         $this->request(
-            "POST /contacts/$contactId",
+            "/contacts/$contactId",
             'POST',
-            ['email' => $email, 'campaign' => ['campaignId' => $campaignId]]
+            [
+                'email' => $email,
+                'campaign' => ['campaignId' => $campaignId],
+            ]
         );
     }
 
     /**
-     * Поиск и изменение компании по адресу электронной почты.
+     * Изменение компании у контакта.
+     *
+     * @param string $customFieldId Id настраиваемого поля.
+     * @param string $contactId Id контакта в getresponse.
+     * @param string $payedCase Оплаченный кейс.
+     * @throws \App\Exceptions\ApiException
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    public function updateContactCustomField(string $customFieldId, string $contactId, string $payedCase): void
+    {
+        $this->request(
+            "/contacts/$contactId/custom-fields",
+            'POST',
+            [
+                'customFieldValues' => [
+                    ['customFieldId' => $customFieldId, 'value' => [$payedCase]]
+                ]
+            ]
+        );
+    }
+
+    /**
+     * Поиск и изменение компании по адресу электронной почты, а также обновление кейсов.
      *
      * @param string $email Адрес электронной почты.
      * @param string $campaignId Id компании (списка).
+     * @param string $payedCase Оплаченный кейс.
      * @throws ApiException
      * @throws GuzzleException
      */
-    public function updateContactCampaignByEmail(string $email, string $campaignId): void
+    public function updateContactCampaignByEmail(string $email, string $campaignId, string $payedCase): void
     {
         $contacts = $this->getContactByEmailFromCampaign($email, $campaignId);
 
@@ -100,5 +127,7 @@ class GetresponseService extends BaseApiService
         }
 
         $this->updateContactCampaignByContactId($contacts[0]["contactId"], $email, $campaignId);
+
+        $this->updateContactCustomField($this::PAYED_CASE_FIELD_ID, $campaignId, $payedCase);
     }
 }
