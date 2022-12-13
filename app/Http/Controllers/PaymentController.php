@@ -2,12 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\ApiException;
+use App\Services\GetresponseService;
+use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Models\Transaction;
 
 class PaymentController extends Controller
 {
+    private $getresponseService;
+
+    public function __construct(GetresponseService $getresponseService)
+    {
+        $this->getresponseService = $getresponseService;
+    }
+
     public function fail(Request $request){
         Log::info("FAIL");
 
@@ -23,25 +33,40 @@ class PaymentController extends Controller
 
 
     }
-    
+
     public function stripeSuccess(Request $request) {
         $session_id = $request->get('session_id');
         $inv_id = $request->get('inv_id');
-        $stripe = new \Stripe\StripeClient('sk_test_51M4jjJJvZKDEPMw58ZRmpNdR2fYBkCRfkR6vyNka9tjbmgJrSFAXFV2hYCoqOZift18ReBb9ALuPcFrQEqlBR3AL00GPoFcD1K');
+        $stripeKey = config('payments.stripe.api_key');
+
         try {
+            $stripe = new \Stripe\StripeClient($stripeKey);
             $session = $stripe->checkout->sessions->retrieve($session_id);
             // проверка наличия номера счета в истории операций
             $transaction = Transaction::where('id', $inv_id)->first();
             if ($session && $transaction) {
-                $transaction->success = false;
+                $transaction->success = true;
                 $transaction->save();
-                return redirect(config('app.urlfront').'/success');
+            } else {
+                return redirect(config('app.urlfront').'/fail');
             }
+        } catch (\Exception $e) {
+            Log::error('Error on stripe success (Exception): ' . $e->getMessage());
 
-        } catch (Error $e) {
             return redirect(config('app.urlfront').'/fail');
         }
 
+        try {
+            $this->getresponseService->updateContactCampaignByEmail($transaction->user->email, $this->getresponseService::CASE_1_SOLD_CAMPAIGN_ID);
+        } catch (ApiException $apiException) {
+            Log::error('Error on getresponse create contact (Api exception): ' . $apiException->getMessage());
+        } catch (GuzzleException $guzzleException) {
+            Log::error('Error on getresponse create contact (Guzzle exception): ' . $guzzleException->getMessage());
+        } catch (\Exception $e) {
+            Log::error('Error on getresponse update contact (Exception): ' . $e->getMessage());
+        }
+
+        return redirect(config('app.urlfront').'/success');
     }
 
     public function success(Request $request){
@@ -117,5 +142,14 @@ class PaymentController extends Controller
         $transaction->success = true;
         $transaction->save();
 
+        try {
+            $this->getresponseService->updateContactCampaignByEmail($transaction->user->email, $this->getresponseService::CASE_1_SOLD_CAMPAIGN_ID);
+        } catch (ApiException $apiException) {
+            Log::error('Error on getresponse update contact (Api exception): ' . $apiException->getMessage());
+        } catch (GuzzleException $guzzleException) {
+            Log::error('Error on getresponse update contact (Guzzle exception): ' . $guzzleException->getMessage());
+        } catch (\Exception $e) {
+            Log::error('Error on getresponse update contact (Exception): ' . $e->getMessage());
+        }
     }
 }

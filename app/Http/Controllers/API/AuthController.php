@@ -99,9 +99,18 @@ class AuthController extends Controller
         $newUser->password = \Illuminate\Support\Facades\Hash::make(Str::random(8));
         $newUser->save();
 
+        $emailLogin = EmailLogin::createForEmail($request->email);
+        $url = route('email-authenticate', [
+            'token' => $emailLogin->token,
+        ]);
+
         if ($newUser) {
             try {
-                $this->getresponseService->createContact($newUser->email, $this->getresponseService::CASE_1_LEAD_CAMPAIGN_ID);
+                $this->getresponseService->createContact(
+                    $newUser->email,
+                    $this->getresponseService::CASE_1_LEAD_CAMPAIGN_ID,
+                    $url
+                );
             } catch (ApiException $apiException) {
                 Log::error('Error on getresponse create contact (Api exception): ' . $apiException->getMessage());
             } catch (GuzzleException $guzzleException) {
@@ -110,12 +119,6 @@ class AuthController extends Controller
 
             $userId = $newUser->id;
         }
-
-        //создаем авторизационный хеш к email и отправляем письмо-подтверждение авторизации
-        $emailLogin = EmailLogin::createForEmail($request->email);
-        $url = route('email-authenticate', [
-            'token' => $emailLogin->token,
-        ]);
 
         Mail::send('emails.email-login', ['url' => $url], function ($m) use ($request) {
             $m->from(config('mail.from.address'), config('app.title'));

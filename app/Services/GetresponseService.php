@@ -2,6 +2,10 @@
 
 namespace App\Services;
 
+use App\Exceptions\ApiException;
+use GuzzleHttp\Exception\GuzzleException;
+use Illuminate\Support\Facades\Log;
+
 /**
  * Сервис взаимодействия с API Getresponse.
  *
@@ -11,6 +15,7 @@ class GetresponseService extends BaseApiService
 {
     const CASE_1_LEAD_CAMPAIGN_ID = 'oPIZt';
     const CASE_1_SOLD_CAMPAIGN_ID = 'oPIWi';
+    const LOGIN_URL_FIELD_ID = 'Vtw43s';
 
     public function __construct()
     {
@@ -24,15 +29,22 @@ class GetresponseService extends BaseApiService
      *
      * @param string $email Адрес электронной почты.
      * @param string $campaignId Id компании (списка).
+     * @param string $loginUrl Ссылка для авторизации.
      * @throws \App\Exceptions\ApiException
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    public function createContact(string $email, string $campaignId)
+    public function createContact(string $email, string $campaignId, string $loginUrl)
     {
         $this->request(
             '/contacts',
             'POST',
-            ['email' => $email, 'campaign' => ['campaignId' => $campaignId]]
+            [
+                'email' => $email,
+                'campaign' => ['campaignId' => $campaignId],
+                'customFieldValues' => [
+                    ['customFieldId' => self::LOGIN_URL_FIELD_ID, 'value' => [$loginUrl], 'values' => [$loginUrl]]
+                ]
+            ]
         );
     }
 
@@ -62,12 +74,31 @@ class GetresponseService extends BaseApiService
      * @throws \App\Exceptions\ApiException
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    public function updateContactCampaign(string $contactId, string $email, string $campaignId): void
+    public function updateContactCampaignByContactId(string $contactId, string $email, string $campaignId): void
     {
         $this->request(
             "POST /contacts/$contactId",
             'POST',
             ['email' => $email, 'campaign' => ['campaignId' => $campaignId]]
         );
+    }
+
+    /**
+     * Поиск и изменение компании по адресу электронной почты.
+     *
+     * @param string $email Адрес электронной почты.
+     * @param string $campaignId Id компании (списка).
+     * @throws ApiException
+     * @throws GuzzleException
+     */
+    public function updateContactCampaignByEmail(string $email, string $campaignId): void
+    {
+        $contacts = $this->getContactByEmailFromCampaign($email, $campaignId);
+
+        if ($contacts === []) {
+            throw new ApiException("Contacts by $email not found!");
+        }
+
+        $this->updateContactCampaignByContactId($contacts[0]["contactId"], $email, $campaignId);
     }
 }
