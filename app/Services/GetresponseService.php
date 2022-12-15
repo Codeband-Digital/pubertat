@@ -120,14 +120,15 @@ class GetresponseService extends BaseApiService
      */
     public function updateContactCampaignByEmail(string $email, string $campaignId, string $payedCase): void
     {
-        $contacts = $this->getContactByEmailFromCampaign($email, $campaignId);
+        $contacts = $this->getContactByEmailFromCampaign($email, $this::CASE_1_LEAD_CAMPAIGN_ID);
 
-        if ($contacts === []) {
+        if ($contacts['data'] === []) {
             throw new ApiException("Contacts by $email not found!");
         }
 
-        $this->updateContactCampaignByContactId($contacts[0]["contactId"], $email, $campaignId);
+        $contact = $contacts['data'][0]["contactId"];
+        $this->updateContactCampaignByContactId($contact, $email, $campaignId);
 
-        $this->updateContactCustomField($this::PAYED_CASE_FIELD_ID, $campaignId, $payedCase);
+        $this->updateContactCustomField($this::PAYED_CASE_FIELD_ID, $contact, $payedCase);
     }
 }

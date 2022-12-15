@@ -120,11 +120,6 @@ class AuthController extends Controller
             $userId = $newUser->id;
         }
 
-        Mail::send('emails.email-login', ['url' => $url], function ($m) use ($request) {
-            $m->from(config('mail.from.address'), config('app.title'));
-            $m->to($request->input('email'))->subject(config('Подтвердите почту'));
-        });
-
 
         return response()->json([
             "status"  => true,
