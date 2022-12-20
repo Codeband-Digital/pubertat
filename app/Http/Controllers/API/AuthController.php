@@ -175,10 +175,16 @@ class AuthController extends Controller
             $case->name
         );
 
-        $stripePaymentUrl = $this->stripeService->getPaymentUrl(
-            (string) $transaction->id,
-            $case->stripe_price_id
-        );
+        $stripePaymentUrl = "";
+
+        try {
+            $stripePaymentUrl = $this->stripeService->getPaymentUrl(
+                (string) $transaction->id,
+                $case->stripe_price_id
+            );
+        } catch (\Exception $e) {
+            Log::error('Error on stripe get link (Exception): ' . $e->getMessage());
+        }
 
         return response()->json([
             "status"  => true,
