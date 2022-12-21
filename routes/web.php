@@ -26,7 +26,8 @@ Route::get('/result', [\App\Http\Controllers\PaymentController::class, 'result']
 Route::post('/api/login/', [\App\Http\Controllers\API\AuthController::class, 'login']);
 //Route::get('/api/logout/', [\App\Http\Controllers\API\AuthController::class, 'logout']);
 Route::get('/api/getUserInfo/', [\App\Http\Controllers\API\AuthController::class, 'getAuth']);
-Route::get('/api/getPaymentLinks/', [\App\Http\Controllers\API\AuthController::class, 'getPaymentLinks']);
+Route::get('/api/getPaymentLinks/', [\App\Http\Controllers\API\AuthController::class, 'getPaymentLinkAuth']);
+Route::get('/api/getPaymentLinksByEmail/', [\App\Http\Controllers\API\AuthController::class, 'getPaymentLinks']);
 Route::get('/api/getCases/', [\App\Http\Controllers\API\CasesController::class, 'getAll']);
 
 

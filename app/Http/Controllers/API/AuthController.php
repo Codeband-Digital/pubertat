@@ -6,6 +6,7 @@ use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 
 use App\Models\Cases;
+use App\Models\User;
 use App\Services\GetresponseService;
 use App\Services\RobokassaService;
 use App\Services\StripeService;
@@ -133,7 +134,7 @@ class AuthController extends Controller
 
     }
 
-    public function getPaymentLinks(Request $request)
+    public function getPaymentLinkAuth(Request $request)
     {
         if (!Auth::check()) {
             return response()->json(
@@ -153,6 +154,84 @@ class AuthController extends Controller
         $paidTransaction = false;
         $auth = true;
         $user = Auth::user();
+        $transaction = Transaction::where('user_id', $user->id)->where('case_id', $caseId)->first();
+
+        if (!$transaction) {
+            $transaction = new Transaction;
+            $transaction->out_sum = CASE_PRICE;
+            $transaction->user_id = $user->id;
+            $transaction->case_id = $caseId;
+            $transaction->save();
+        }
+
+        if ($transaction->success) {
+            $paidTransaction = true;
+        }
+
+        $case = $transaction->case;
+
+        $robokassaPaymentUrl = $this->robokassaService->getPaymentUrl(
+            (string) $transaction->id,
+            (string) $case->price,
+            $case->name
+        );
+
+        $stripePaymentUrl = "";
+
+        try {
+            $stripePaymentUrl = $this->stripeService->getPaymentUrl(
+                (string) $transaction->id,
+                $case->stripe_price_id
+            );
+        } catch (\Exception $e) {
+            Log::error('Error on stripe get link (Exception): ' . $e->getMessage());
+        }
+
+        return response()->json([
+            "status"  => true,
+            "message" => "",
+            "data"    => [
+                "user"         => $user,
+                "auth"         => $auth,
+                "paid"         => $paidTransaction,
+                "price"        => $case->price,
+                "payment_urls" => [
+                    "robokassa" => $robokassaPaymentUrl,
+                    "stripe"    => $stripePaymentUrl,
+                ],
+            ],
+        ]);
+    }
+
+    public function getPaymentLinks(Request $request)
+    {
+        $caseId = $request->get('case_id');
+        $email = $request->get('email');
+
+        if (!$email) {
+            return response()->json(
+                ["status" => false, "message" => "Email not found in request"],
+                400
+            );
+        }
+
+        if (!$caseId) {
+            $caseId = 1;
+        }
+
+        $caseId = (int) $caseId;
+
+        $paidTransaction = false;
+        $auth = false;
+        $user = User::query()->where('email', '=', $email)->first();
+
+        if (!$user) {
+            return response()->json(
+                ["status" => false, "message" => "User with $email email not found!"],
+                400
+            );
+        }
+
         $transaction = Transaction::where('user_id', $user->id)->where('case_id', $caseId)->first();
 
         if (!$transaction) {
