@@ -49,26 +49,6 @@ class AuthController extends Controller
             ]);
         }
 
-        if ($request->resend == "y" && $request->email != "") {
-            $issetUserEmail = EmailLogin::where('email', $request->email)->first();
-            if ($issetUserEmail) {
-                $url = route('email-authenticate', [
-                    'token' => $issetUserEmail->token,
-                ]);
-
-                Mail::send('emails.email-login', ['url' => $url], function ($m) use ($request) {
-                    $m->from(config('mail.from.address'), config('app.title'));
-                    $m->to($request->input('email'))->subject("Подтвердите почту");
-                });
-            }
-
-            return response()->json([
-                "status"  => true,
-                "message" => "Проверьте почту",
-                "data"    => [],
-            ]);
-        }
-
         //проверка на существование пользователя
         $user = \App\Models\User::where("email", $request->email)->first();
         if ($user) {
@@ -77,10 +57,55 @@ class AuthController extends Controller
                 'token' => $issetUserEmail->token,
             ]);
 
-            Mail::send('emails.email-login', ['url' => $url], function ($m) use ($request) {
-                $m->from(config('mail.from.address'), config('app.title'));
-                $m->to($request->input('email'))->subject("Подтвердите почту");
-            });
+            $contact = false;
+
+            try {
+                $contact = $this->getresponseService->findInCaseCampaigns($request->email);
+            } catch (ApiException $apiException) {
+                Log::error('Error on getresponse find contact (Api exception): ' . $apiException->getMessage());
+            } catch (GuzzleException $guzzleException) {
+                Log::error('Error on getresponse find contact (Guzzle exception): ' . $guzzleException->getMessage());
+            }
+
+            if (!$contact) {
+                try {
+                    $contact = $this->getresponseService->findInPersonalAccountCampaign($request->email);
+                } catch (ApiException $apiException) {
+                    Log::error('Error on getresponse find contact (Api exception): ' . $apiException->getMessage());
+                } catch (GuzzleException $guzzleException) {
+                    Log::error('Error on getresponse find contact (Guzzle exception): ' . $guzzleException->getMessage());
+                }
+            }
+
+            if (!$contact) {
+                try {
+                    $this->getresponseService->createContact(
+                        $request->email,
+                        $this->getresponseService::PERSONAL_ACCOUNT_CAMPAIGN_ID,
+                        $url
+                    );
+                } catch (ApiException $apiException) {
+                    Log::error('Error on getresponse create contact (Api exception): ' . $apiException->getMessage());
+                } catch (GuzzleException $guzzleException) {
+                    Log::error('Error on getresponse create contact (Guzzle exception): ' . $guzzleException->getMessage());
+                }
+            } else {
+                try {
+                    $this->getresponseService->triggerLoginEvent($contact['contactId']);
+                } catch (ApiException $apiException) {
+                    Log::error('Error on getresponse find contact (Api exception): ' . $apiException->getMessage());
+                } catch (GuzzleException $guzzleException) {
+                    Log::error('Error on getresponse find contact (Guzzle exception): ' . $guzzleException->getMessage());
+                }
+            }
+
+            if ($request->resend == "y") {
+                return response()->json([
+                    "status"  => true,
+                    "message" => "Проверьте почту",
+                    "data"    => [],
+                ]);
+            }
 
             return response()->json([
                 "status"  => true,

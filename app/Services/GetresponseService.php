@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Exceptions\ApiException;
 use GuzzleHttp\Exception\GuzzleException;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Сервис взаимодействия с API Getresponse.
@@ -15,6 +14,7 @@ class GetresponseService extends BaseApiService
 {
     const CASE_1_LEAD_CAMPAIGN_ID = 'oPIZt';
     const CASE_1_SOLD_CAMPAIGN_ID = 'oPIWi';
+    const PERSONAL_ACCOUNT_CAMPAIGN_ID = 'ounRj';
     const LOGIN_URL_FIELD_ID = 'Vtw43s';
     const PAYED_CASE_FIELD_ID = 'Vtw4mg';
 
@@ -110,7 +110,68 @@ class GetresponseService extends BaseApiService
     }
 
     /**
-     * Поиск и изменение компании по адресу электронной почты, а также обновление кейсов.
+     * Вызов события отправки сообщения со ссылкой для входа (send_message_login).
+     *
+     * @param string $contactId Id контакта в getresponse.
+     * @throws \App\Exceptions\ApiException
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    public function triggerLoginEvent(string $contactId): void
+    {
+        $this->request(
+            "/custom-events/trigger",
+            'POST',
+            [
+                'name' => 'send_message_login',
+                'contactId' => $contactId
+            ]
+        );
+    }
+
+    /**
+     * Поиск контакта по адресу электронной почты в "Personal_account" компании.
+     *
+     * @param string $email
+     * @return array
+     * @throws ApiException
+     * @throws GuzzleException
+     */
+    public function findInPersonalAccountCampaign(string $email): array
+    {
+        $contacts = $this->getContactByEmailFromCampaign($email, $this::PERSONAL_ACCOUNT_CAMPAIGN_ID);
+
+        if ($contacts['data'] === []) {
+            throw new ApiException("Contacts by $email not found!");
+        }
+
+        return $contacts['data'][0];
+    }
+
+    /**
+     * Поиск контакта по адресу электронной почты в "CASE_1" компаниях.
+     *
+     * @param string $email
+     * @return array
+     * @throws ApiException
+     * @throws GuzzleException
+     */
+    public function findInCaseCampaigns(string $email): array
+    {
+        $contacts = $this->getContactByEmailFromCampaign($email, $this::CASE_1_LEAD_CAMPAIGN_ID);
+
+        if ($contacts['data'] === []) {
+            $contacts = $this->getContactByEmailFromCampaign($email, $this::CASE_1_SOLD_CAMPAIGN_ID);
+        }
+
+        if ($contacts['data'] === []) {
+            throw new ApiException("Contacts by $email not found!");
+        }
+
+        return $contacts['data'][0];
+    }
+
+    /**
+     * Изменение компании по адресу электронной почты, а также обновление кейсов.
      *
      * @param string $email Адрес электронной почты.
      * @param string $campaignId Id компании (списка).
@@ -120,15 +181,10 @@ class GetresponseService extends BaseApiService
      */
     public function updateContactCampaignByEmail(string $email, string $campaignId, string $payedCase): void
     {
-        $contacts = $this->getContactByEmailFromCampaign($email, $this::CASE_1_LEAD_CAMPAIGN_ID);
+        $contact = $this->findInCaseCampaigns($email);
+        $contactId = $contact["contactId"];
+        $this->updateContactCampaignByContactId($contactId, $email, $campaignId);
 
-        if ($contacts['data'] === []) {
-            throw new ApiException("Contacts by $email not found!");
-        }
-
-        $contact = $contacts['data'][0]["contactId"];
-        $this->updateContactCampaignByContactId($contact, $email, $campaignId);
-
-        $this->updateContactCustomField($this::PAYED_CASE_FIELD_ID, $contact, $payedCase);
+        $this->updateContactCustomField($this::PAYED_CASE_FIELD_ID, $contactId, $payedCase);
     }
 }
