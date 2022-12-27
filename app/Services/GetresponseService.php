@@ -181,7 +181,12 @@ class GetresponseService extends BaseApiService
      */
     public function updateContactCampaignByEmail(string $email, string $campaignId, string $payedCase): void
     {
-        $contact = $this->findInCaseCampaigns($email);
+        try {
+            $contact = $this->findInCaseCampaigns($email);
+        } catch (ApiException $e) {
+            $contact = $this->findInPersonalAccountCampaign($email);
+        }
+
         $contactId = $contact["contactId"];
         $this->updateContactCampaignByContactId($contactId, $email, $campaignId);
 
