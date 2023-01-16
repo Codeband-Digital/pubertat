@@ -89,15 +89,24 @@ class AuthController extends Controller
                 } catch (GuzzleException $guzzleException) {
                     Log::error('Error on getresponse create contact (Guzzle exception): ' . $guzzleException->getMessage());
                 }
-            } else {
+
                 try {
-                    $this->getresponseService->triggerLoginEvent($contact['contactId']);
+                    $contact = $this->getresponseService->findInPersonalAccountCampaign($request->email);
                 } catch (ApiException $apiException) {
                     Log::error('Error on getresponse find contact (Api exception): ' . $apiException->getMessage());
                 } catch (GuzzleException $guzzleException) {
                     Log::error('Error on getresponse find contact (Guzzle exception): ' . $guzzleException->getMessage());
                 }
             }
+
+            try {
+                $this->getresponseService->triggerLoginEvent($contact['contactId']);
+            } catch (ApiException $apiException) {
+                Log::error('Error on getresponse find contact (Api exception): ' . $apiException->getMessage());
+            } catch (GuzzleException $guzzleException) {
+                Log::error('Error on getresponse find contact (Guzzle exception): ' . $guzzleException->getMessage());
+            }
+
 
             if ($request->resend == "y") {
                 return response()->json([
@@ -180,10 +189,11 @@ class AuthController extends Controller
         $auth = true;
         $user = Auth::user();
         $transaction = Transaction::where('user_id', $user->id)->where('case_id', $caseId)->first();
+        $case = Cases::find($caseId);
 
         if (!$transaction) {
             $transaction = new Transaction;
-            $transaction->out_sum = CASE_PRICE;
+            $transaction->out_sum = $case->price;
             $transaction->user_id = $user->id;
             $transaction->case_id = $caseId;
             $transaction->save();
@@ -192,8 +202,6 @@ class AuthController extends Controller
         if ($transaction->success) {
             $paidTransaction = true;
         }
-
-        $case = $transaction->case;
 
         $robokassaPaymentUrl = $this->robokassaService->getPaymentUrl(
             (string) $transaction->id,
@@ -258,10 +266,11 @@ class AuthController extends Controller
         }
 
         $transaction = Transaction::where('user_id', $user->id)->where('case_id', $caseId)->first();
+        $case = Cases::find($caseId);
 
         if (!$transaction) {
             $transaction = new Transaction;
-            $transaction->out_sum = CASE_PRICE;
+            $transaction->out_sum = $case->price;
             $transaction->user_id = $user->id;
             $transaction->case_id = $caseId;
             $transaction->save();
@@ -270,8 +279,6 @@ class AuthController extends Controller
         if ($transaction->success) {
             $paidTransaction = true;
         }
-
-        $case = $transaction->case;
 
         $robokassaPaymentUrl = $this->robokassaService->getPaymentUrl(
             (string) $transaction->id,
