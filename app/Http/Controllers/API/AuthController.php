@@ -99,12 +99,14 @@ class AuthController extends Controller
                 }
             }
 
-            try {
-                $this->getresponseService->triggerLoginEvent($contact['contactId']);
-            } catch (ApiException $apiException) {
-                Log::error('Error on getresponse find contact (Api exception): ' . $apiException->getMessage());
-            } catch (GuzzleException $guzzleException) {
-                Log::error('Error on getresponse find contact (Guzzle exception): ' . $guzzleException->getMessage());
+            if ($contact) {
+                try {
+                    $this->getresponseService->triggerLoginEvent($contact['contactId']);
+                } catch (ApiException $apiException) {
+                    Log::error('Error on getresponse find contact (Api exception): ' . $apiException->getMessage());
+                } catch (GuzzleException $guzzleException) {
+                    Log::error('Error on getresponse find contact (Guzzle exception): ' . $guzzleException->getMessage());
+                }
             }
 
 
